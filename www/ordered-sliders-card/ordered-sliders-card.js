@@ -21,7 +21,7 @@ const TRANSLATIONS = {
     color_label_optional: "Color (optional)",
     icon_label: "Icon (optional)",
     show_unit: "Show Unit",
-    show_icon: "Show Icon",
+    hide_icon: "Hide Icon",
     save: "Save",
     cancel: "Cancel",
     no_entities: "No entities",
@@ -49,7 +49,7 @@ const TRANSLATIONS = {
     color_label_optional: "Couleur (optionnel)",
     icon_label: "Icône (optionnel)",
     show_unit: "Afficher l'unité",
-    show_icon: "Afficher l'icône",
+    hide_icon: "Masquer l'icône",
     save: "Enregistrer",
     cancel: "Annuler",
     no_entities: "Aucune entité",
@@ -77,7 +77,7 @@ const TRANSLATIONS = {
     color_label_optional: "Farbe (optional)",
     icon_label: "Symbol (optional)",
     show_unit: "Einheit anzeigen",
-    show_icon: "Symbol anzeigen",
+    hide_icon: "Symbol ausblenden",
     save: "Speichern",
     cancel: "Abbrechen",
     no_entities: "Keine Entitäten",
@@ -105,7 +105,7 @@ const TRANSLATIONS = {
     color_label_optional: "Color (opcional)",
     icon_label: "Icono (opcional)",
     show_unit: "Mostrar unidad",
-    show_icon: "Mostrar icono",
+    hide_icon: "Ocultar icono",
     save: "Guardar",
     cancel: "Cancelar",
     no_entities: "Sin entidades",
@@ -133,7 +133,7 @@ const TRANSLATIONS = {
     color_label_optional: "Cor (opcional)",
     icon_label: "Ícone (opcional)",
     show_unit: "Mostrar unidade",
-    show_icon: "Mostrar ícone",
+    hide_icon: "Ocultar ícone",
     save: "Salvar",
     cancel: "Cancelar",
     no_entities: "Sem entidades",
@@ -323,7 +323,7 @@ class OrderedSlidersCard extends HTMLElement {
       const color = entity.attributes.icon_color || entityConfig.color || '#ffffff';
       
       const showUnit = entityConfig.show_unit !== false;
-      const showIcon = entityConfig.show_icon !== false;
+      const hideIcon = entityConfig.hide_icon === true;
       
       const icon = entity.attributes.icon || entityConfig.icon || '';
       const iconColor = entity.attributes.icon_color || entityConfig.icon_color || color;
@@ -354,13 +354,14 @@ class OrderedSlidersCard extends HTMLElement {
       detailRow.className = 'detail-row';
       
       let iconHtml = '';
-      if (showIcon && icon) {
+      if (!hideIcon && icon) {
         iconHtml = `<div class="detail-icon"><ha-icon icon="${icon}" style="color: ${iconColor};"></ha-icon></div>`;
+      } else if (hideIcon) {
+        iconHtml = `<div class="detail-color" style="background-color: ${color};"></div>`;
       }
       
       detailRow.innerHTML = `
         ${iconHtml}
-        <div class="detail-color" style="background-color: ${color};"></div>
         <div class="detail-name">${name}</div>
         <div class="detail-value">${displayValue}</div>
       `;
@@ -760,6 +761,11 @@ class OrderedSlidersCardEditor extends HTMLElement {
       this.fireConfigChanged(true);
     });
 
+    this.shadowRoot.querySelector('#free_mode')?.addEventListener('change', (e) => {
+      this._config.free_mode = e.target.value === 'true';
+      this.fireConfigChanged(true);
+    });
+
     this.shadowRoot.querySelectorAll('input[data-gradient-index]').forEach(input => {
       input.addEventListener('change', (e) => {
         const index = parseInt(e.target.dataset.gradientIndex);
@@ -840,8 +846,8 @@ class OrderedSlidersCardEditor extends HTMLElement {
             <label for="form-show-unit">${t('show_unit')}</label>
           </div>
           <div class="checkbox-row">
-            <input type="checkbox" id="form-show-icon" ${entity.show_icon !== false ? 'checked' : ''}>
-            <label for="form-show-icon">${t('show_icon')}</label>
+            <input type="checkbox" id="form-hide-icon" ${entity.hide_icon === true ? 'checked' : ''}>
+            <label for="form-hide-icon">${t('hide_icon')}</label>
           </div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 15px;">
@@ -857,7 +863,7 @@ class OrderedSlidersCardEditor extends HTMLElement {
     const colorInput = this.shadowRoot.querySelector('#form-color');
     const iconInput = this.shadowRoot.querySelector('#form-icon');
     const showUnitInput = this.shadowRoot.querySelector('#form-show-unit');
-    const showIconInput = this.shadowRoot.querySelector('#form-show-icon');
+    const hideIconInput = this.shadowRoot.querySelector('#form-hide-icon');
 
     entityInput?.addEventListener('blur', (e) => {
       this._config.entities[index].entity = e.target.value;
@@ -884,8 +890,8 @@ class OrderedSlidersCardEditor extends HTMLElement {
       this.fireConfigChanged(true);
     });
 
-    showIconInput?.addEventListener('change', (e) => {
-      this._config.entities[index].show_icon = e.target.checked;
+    hideIconInput?.addEventListener('change', (e) => {
+      this._config.entities[index].hide_icon = e.target.checked;
       this.fireConfigChanged(true);
     });
 
