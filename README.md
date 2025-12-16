@@ -13,7 +13,7 @@ A custom Lovelace card for Home Assistant that displays multiple `input_number` 
 - 🎯 **Adjustable dimensions** - Customize bar height and slider height independently
 - 🌈 **Auto-color detection** - Automatically uses `icon_color` from entities if available
 - 🔢 **Unit display** - Show or hide units for each entity
-- 🎭 **Icon support** - Display icons for each entity
+- 🎭 **Icon support** - Display icons for each entity (shown by default)
 - 🌍 **Multi-language** - Supports English, French, German, Spanish, and Portuguese
 - 🎛️ **Visual editor** - User-friendly configuration interface
 
@@ -81,7 +81,7 @@ entities:
     color: '#00aaff'
     icon: 'mdi:home-off'
     show_unit: true
-    show_icon: true
+    hide_icon: false  # Icons are shown by default
   - entity: input_number.temp_eco
     name: Eco Temperature
     color: '#22ff00'
@@ -91,6 +91,7 @@ entities:
   - entity: input_number.temp_max
     name: Maximum Temperature
     color: '#ff0000'
+    hide_icon: true  # Hide icon and show colored square instead
 ```
 
 ## Configuration Options
@@ -120,8 +121,21 @@ entities:
 | `color` | string | Auto-generated or from `icon_color` | Custom slider color (hex code) |
 | `icon` | string | Entity's icon | Custom icon (e.g., `mdi:thermometer`) |
 | `show_unit` | boolean | `true` | Show unit of measurement |
-| `show_icon` | boolean | `true` | Show icon in details section |
+| `hide_icon` | boolean | `false` | Hide icon and show colored square instead |
 | `unit` | string | Entity's unit | Override unit display |
+
+## Icon Display Behavior
+
+By default, icons are **shown** for all entities:
+- If an entity has an icon (either from its attributes or defined in the config), it will be displayed
+- The icon uses the color from `icon_color` attribute or the entity's `color` setting
+
+To **hide** the icon and display a colored square instead:
+```yaml
+entities:
+  - entity: input_number.temp
+    hide_icon: true  # Shows colored square instead of icon
+```
 
 ## How It Works
 
@@ -178,9 +192,13 @@ gradient:
   - '#F44336'
 entities:
   - entity: input_number.temp_away
+    icon: 'mdi:home-export-outline'
   - entity: input_number.temp_eco
+    icon: 'mdi:leaf'
   - entity: input_number.temp_comfort
+    icon: 'mdi:sofa'
   - entity: input_number.temp_boost
+    icon: 'mdi:fire'
 ```
 
 ### Brightness Levels
@@ -200,10 +218,13 @@ gradient:
 entities:
   - entity: input_number.brightness_dim
     name: Dim
+    icon: 'mdi:brightness-4'
   - entity: input_number.brightness_normal
     name: Normal
+    icon: 'mdi:brightness-5'
   - entity: input_number.brightness_bright
     name: Bright
+    icon: 'mdi:brightness-7'
 ```
 
 ### Single Slider (Free Mode)
@@ -222,6 +243,32 @@ gradient:
   - '#800080'
 entities:
   - entity: input_number.temperature_offset
+    icon: 'mdi:thermometer'
+```
+
+### Mixed Display (Icons and Colored Squares)
+
+```yaml
+type: custom:ordered-sliders-card
+title: Priority Levels
+min: 0
+max: 100
+step: 10
+entities:
+  - entity: input_number.priority_low
+    name: Low
+    color: '#4CAF50'
+    hide_icon: true  # Shows green square
+  - entity: input_number.priority_medium
+    name: Medium
+    icon: 'mdi:alert'
+    color: '#FF9800'
+    # Icon shown by default
+  - entity: input_number.priority_high
+    name: High
+    icon: 'mdi:alert-octagon'
+    color: '#F44336'
+    # Icon shown by default
 ```
 
 ## Troubleshooting
@@ -232,7 +279,7 @@ entities:
 - Verify entities exist in Home Assistant
 
 ### Gradients look wrong on multiple cards
-- This should be fixed in the latest version using Shadow DOM
+- This is fixed in the latest version using Shadow DOM
 - Clear browser cache and hard refresh (Ctrl+F5)
 
 ### Sliders won't move past each other
@@ -244,6 +291,11 @@ entities:
 - Increase grid opacity in your theme
 - Ensure `show_grid: true`
 - Try a larger `step` value
+
+### Icons not showing
+- Verify the icon name is correct (e.g., `mdi:thermometer`)
+- Check that `hide_icon` is not set to `true`
+- Ensure the entity or config has an `icon` attribute defined
 
 ## Contributing
 
