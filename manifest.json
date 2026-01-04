@@ -1,12 +1,6 @@
 {
-  "domain": "ordered_sliders_card",
   "name": "Ordered Sliders Card",
-  "codeowners": ["@Pulpyyyy"],
-  "config_flow": false,
-  "documentation": "https://github.com/Pulpyyyy/ordered-sliders-card",
-  "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/Pulpyyyy/ordered-sliders-card/issues",
-  "requirements": [],
-  "version": "3.9.6",
-  "homeassistant": "2023.12.0"
+  "description": "A beautiful and responsive card for Home Assistant displaying ordered vertical sliders",
+  "homeassistant": "2024.1.0",
+  "filename": "ordered-sliders-card.js"
 }
