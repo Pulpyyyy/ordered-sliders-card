@@ -6,6 +6,8 @@
 
 A beautiful and responsive card for Home Assistant displaying ordered vertical sliders with gradient backgrounds.
 
+![Ordered Sliders Card](.img/screenshot.png)
+
 ## Features
 
 ✨ **Design**
