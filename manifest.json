@@ -1,6 +1,6 @@
 {
-  "domain": "ordered-sliders-card",
-  "name": "Ordered sliders Card",
+  "domain": "ordered_sliders_card",
+  "name": "Ordered Sliders Card",
   "codeowners": ["@Pulpyyyy"],
   "config_flow": false,
   "documentation": "https://github.com/Pulpyyyy/ordered-sliders-card",
