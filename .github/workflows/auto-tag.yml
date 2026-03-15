@@ -21,24 +21,25 @@ jobs:
       - name: Extract Version from JS
         id: get_version
         run: |
-          VERSION=$(grep -oP 'Ordered Sliders Card %c v\K[0-9]+\.[0-9]+\.[0-9]+' ordered-sliders-card.js | head -n 1)
-          
-          # Adding 'v' prefix for the git tag (results in v1.0.0)
+          VERSION=$(grep -oP 'Ordered Sliders Card %c v\K[0-9]+\.[0-9]+\.[0-9]+' dist/ordered-sliders-card.js | head -n 1)
+
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Could not extract version from dist/ordered-sliders-card.js"
+            exit 1
+          fi
+
           TAG="v$VERSION"
-          
-          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
           echo "Found version: $TAG"
 
       - name: Push Tag
         run: |
-          # Check if tag already exists
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists. Skipping."
           else
             echo "Creating and pushing tag $TAG"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag $TAG
-            git push origin $TAG
-
+            git tag "$TAG"
+            git push origin "$TAG"
           fi
