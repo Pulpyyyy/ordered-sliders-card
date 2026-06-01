@@ -94,6 +94,8 @@ const TRANSLATIONS = {
 // Expose translations so the editor file can reuse them without duplication
 window.__orderedSlidersTranslations = TRANSLATIONS;
 
+const CARD_VERSION = "2.2.0";
+
 const SLIDER_CONSTANTS = {
     DEBOUNCE_DELAY_MS: 500,
     THROTTLE_API_CALL_MS: 100,
@@ -799,7 +801,18 @@ class OrderedSlidersCard extends HTMLElement {
         return document.createElement('ordered-sliders-card-editor');
     }
 
-    static getStubConfig() {
+    static getStubConfig(hass, entities, entitiesFallback) {
+        // Pre-fill an input_number entity for the 2026.6 entity-first card picker.
+        // 1) entities selected in the picker, 2) fallback list, 3) first available in hass.
+        const pickInputNumber = (list) =>
+            (list || []).filter(id => id.startsWith('input_number.'));
+
+        let chosen = pickInputNumber(entities);
+        if (!chosen.length) chosen = pickInputNumber(entitiesFallback);
+        if (!chosen.length && hass) {
+            chosen = Object.keys(hass.states).filter(id => id.startsWith('input_number.'));
+        }
+
         return {
             title: 'Ordered Sliders',
             min: 0,
@@ -810,7 +823,7 @@ class OrderedSlidersCard extends HTMLElement {
             show_grid: true,
             free_mode: false,
             gradient: ['#2196F3', '#4CAF50', '#FF9800', '#F44336'],
-            entities: []
+            entities: chosen.slice(0, 1).map(entity => ({ entity }))
         };
     }
 
@@ -822,7 +835,7 @@ class OrderedSlidersCard extends HTMLElement {
 customElements.define("ordered-sliders-card", OrderedSlidersCard);
 
 console.info(
-    "%c Ordered Sliders Card %c v2.1.0 %c",
+    `%c Ordered Sliders Card %c v${CARD_VERSION} %c`,
     "background:#2196F3;color:white;padding:2px 8px;border-radius:3px 0 0 3px;font-weight:bold",
     "background:#4CAF50;color:white;padding:2px 8px;border-radius:0 3px 3px 0;font-weight:bold",
     "background:none"
@@ -832,5 +845,17 @@ window.customCards = window.customCards || [];
 window.customCards.push({
     type: "ordered-sliders-card",
     name: "Ordered Sliders Card",
-    description: "Ordered Sliders Card v2.1.0 - Ordered vertical sliders with gradient, centralized state management, memory optimization, API throttling, keyboard/touch support, and accessibility."
+    description: `Ordered Sliders Card v${CARD_VERSION} - Ordered vertical sliders with gradient, centralized state management, memory optimization, API throttling, keyboard/touch support, and accessibility.`,
+    documentationURL: "https://github.com/Pulpyyyy/ordered-sliders-card",
+    getEntitySuggestion: (hass, entityId) => {
+        if (entityId.split(".")[0] !== "input_number") {
+            return null;
+        }
+        return {
+            config: {
+                type: "custom:ordered-sliders-card",
+                entities: [{ entity: entityId }]
+            }
+        };
+    }
 });

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-06-01
+
+### Added
+- 🆕 `getEntitySuggestion` — the card now appears in the Home Assistant 2026.6 entity-first card picker when an `input_number` entity is selected
+- 🔗 `documentationURL` in the card registration
+
+### Changed
+- 🔧 `getStubConfig(hass, entities, entitiesFallback)` now pre-fills a selected/available `input_number` entity instead of returning an empty list
+
 ## [2.0.0] - 2025-01-04
 
 ### Added
