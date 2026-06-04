@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'The version tag to release'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v2.2.0) — leave empty to use the latest tag'
+        required: false
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve tag
+        id: resolve
+        run: |
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(git describe --tags --abbrev=0)
+            echo "No tag provided, using latest: $TAG"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          git checkout "$TAG"
+
+      - name: Build release zip
+        run: |
+          cd dist
+          zip ../ordered-sliders-card.zip ordered-sliders-card.js ordered-sliders-card-editor.js
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        with:
+          tag_name: ${{ steps.resolve.outputs.tag }}
+          name: "${{ steps.resolve.outputs.tag }}"
+          generate_release_notes: true
+          files: ordered-sliders-card.zip

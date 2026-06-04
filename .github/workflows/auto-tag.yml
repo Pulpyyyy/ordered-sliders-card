@@ -1,45 +1,66 @@
-name: Sync Tag with JS Version
+name: Auto Tag
 
 on:
-  push:
-    branches:
-      - main
-      - master
+  workflow_call:
+    outputs:
+      tag:
+        description: 'The version tag extracted from the JS file'
+        value: ${{ jobs.tag.outputs.tag }}
+      skip:
+        description: 'Whether the tag already existed'
+        value: ${{ jobs.tag.outputs.skip }}
 
 jobs:
-  tag-only:
+  tag:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      skip: ${{ steps.check.outputs.skip }}
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Extract Version from JS
-        id: get_version
+        id: version
         run: |
           VERSION=$(grep -oP 'CARD_VERSION\s*=\s*"\K[0-9]+\.[0-9]+\.[0-9]+' dist/ordered-sliders-card.js | head -n 1)
-
           if [ -z "$VERSION" ]; then
-            echo "ERROR: Could not extract version from dist/ordered-sliders-card.js"
+            echo "ERROR: Could not extract CARD_VERSION from dist/ordered-sliders-card.js"
             exit 1
           fi
-
           TAG="v$VERSION"
-          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Found version: $TAG"
 
-      - name: Push Tag
+      - name: Check if tag and release already exist
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          TAG="${{ steps.version.outputs.tag }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists. Skipping."
+            # Tag exists — check if a GitHub release also exists
+            STATUS=$(gh release view "$TAG" --json tagName --jq '.tagName' 2>/dev/null || echo "")
+            if [ -n "$STATUS" ]; then
+              echo "skip=true" >> $GITHUB_OUTPUT
+              echo "Tag $TAG and release already exist. Skipping."
+            else
+              echo "skip=false" >> $GITHUB_OUTPUT
+              echo "Tag $TAG exists but no release found. Will create release."
+            fi
           else
-            echo "Creating and pushing tag $TAG"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag "$TAG"
-            git push origin "$TAG"
+            echo "skip=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Create and push tag
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
