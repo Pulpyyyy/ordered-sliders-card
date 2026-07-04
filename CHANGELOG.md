@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.1] - 2026-07-04
+
+### Fixed
+- 🐛 Dragging no longer breaks when an optimistic state update rebuilds the DOM mid-gesture (guard on `isDragging`)
+- 🐛 The final drag value is flushed on release, so the slider no longer snaps back to a stale value
+- 🐛 Keyboard navigation now snaps to the step grid and respects the ordering constraints (handles can no longer cross)
+- 🐛 Config-only changes (step/height/title/gradient…) no longer leave a blank card / stale grid
+- 🐛 `handle_height` below the minimum is now actually clamped (matching the warning)
+- 🐛 Render refreshes when `friendly_name` / `unit` / `icon` / `icon_color` change, not only on state change
+
+### Security
+- 🔒 Strict CSS color validation for entity colors, `icon_color` and gradient stops (blocks CSS injection)
+
+### Changed
+- ♿ Slider handles expose `aria-valuemin/max/now`
+- 🎨 Gradient now accepts `#RGB` / `#RRGGBBAA` / `rgb()` / `hsl()` / `var()`
+- 📳 Removed the duplicate touch vibration on release
+
 ## [2.2.0] - 2026-06-01
 
 ### Added

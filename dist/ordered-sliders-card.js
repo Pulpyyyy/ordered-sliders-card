@@ -94,7 +94,7 @@ const TRANSLATIONS = {
 // Expose translations so the editor file can reuse them without duplication
 window.__orderedSlidersTranslations = TRANSLATIONS;
 
-const CARD_VERSION = "2.2.0";
+const CARD_VERSION = "2.2.1";
 
 const SLIDER_CONSTANTS = {
     DEBOUNCE_DELAY_MS: 500,
@@ -132,6 +132,23 @@ function escapeHtmlAttribute(text) {
 
 function validateEntityId(entityId) {
     return SLIDER_CONSTANTS.ENTITY_ID_REGEX.test(entityId);
+}
+
+// Strict CSS color validation — used before injecting a color into inline
+// styles / <style>. None of the accepted forms allow ';' or ':' , so extra CSS
+// declarations cannot be smuggled in via a config color.
+function isValidCssColor(value) {
+    const str = String(value).trim();
+    if (!str || str.length > 64) return false;
+    // #RGB, #RGBA, #RRGGBB, #RRGGBBAA
+    if (/^#([0-9A-F]{3,4}|[0-9A-F]{6}|[0-9A-F]{8})$/i.test(str)) return true;
+    // rgb()/rgba()/hsl()/hsla() with numeric content only
+    if (/^(rgb|rgba|hsl|hsla)\(\s*[\d.,%/\s]+\)$/i.test(str)) return true;
+    // var(--custom-prop) with an optional simple fallback
+    if (/^var\(\s*--[\w-]+\s*(,\s*[#\w().,%\s-]+)?\)$/i.test(str)) return true;
+    // named colors / keywords: letters only (red, transparent, currentColor…)
+    if (/^[a-z]+$/i.test(str)) return true;
+    return false;
 }
 
 class LanguageHelper {
@@ -280,9 +297,9 @@ class OrderedSlidersCard extends HTMLElement {
 
         const min = this._validateNumericValue(config.min, 0);
         const max = this._validateNumericValue(config.max, 100);
-        const step = this._validateNumericValue(config.step, 1);
-        const height = this._validateNumericValue(config.height, 60);
-        const handleHeight = this._validateNumericValue(config.handle_height, 40);
+        let step = this._validateNumericValue(config.step, 1);
+        let height = this._validateNumericValue(config.height, 60);
+        let handleHeight = this._validateNumericValue(config.handle_height, 40);
 
         if (min >= max) {
             const error = `Configuration error: min (${min}) must be less than max (${max})`;
@@ -296,26 +313,28 @@ class OrderedSlidersCard extends HTMLElement {
             throw new Error(error);
         }
 
+        // Clamp into local variables so the applied config always matches the
+        // warning messages (do not rely on mutating the input `config`).
         if (step > (max - min)) {
-            console.warn(`Warning: step (${step}) is larger than range (${max - min}), adjusting to ${(max - min) / 2}`);
-            config.step = (max - min) / 2;
+            step = (max - min) / 2;
+            console.warn(`Warning: step is larger than range (${max - min}), adjusting to ${step}`);
         }
 
         if (height < 20) {
             console.warn(`Warning: height (${height}) is too small, setting to 20`);
-            config.height = 20;
+            height = 20;
         }
 
         if (handleHeight < 20) {
             console.warn(`Warning: handle_height (${handleHeight}) is too small, setting to 20`);
-            config.handle_height = 20;
+            handleHeight = 20;
         }
 
         this.config = {
             min,
             max,
-            step: this._validateNumericValue(config.step, 1),
-            height: this._validateNumericValue(config.height, 60),
+            step,
+            height,
             handle_height: handleHeight,
             gradient,
             entities: validatedEntities,
@@ -352,10 +371,16 @@ class OrderedSlidersCard extends HTMLElement {
                 return null;
             }
 
+            const rawColor = String(entity.color || '').trim();
+            const color = isValidCssColor(rawColor) ? rawColor : '';
+            if (rawColor && !color) {
+                console.warn(`Ignoring invalid color at index ${index}: "${rawColor}"`);
+            }
+
             return {
                 entity: entityId,
                 name: String(entity.name || '').trim().substring(0, 100),
-                color: String(entity.color || '').trim().substring(0, 20),
+                color,
                 icon: String(entity.icon || '').trim().substring(0, 50),
                 show_unit: entity.show_unit !== false,
                 hide_icon: entity.hide_icon === true,
@@ -369,12 +394,10 @@ class OrderedSlidersCard extends HTMLElement {
 
     _validateGradient(gradient) {
         if (!Array.isArray(gradient)) return ['#ff0000', '#ffff00', '#00ff00'];
-        const validated = gradient.map(c => {
-            const str = String(c).trim();
-            const isHex = /^#[0-9A-F]{6}$/i.test(str);
-            const isCssVar = str.includes('var(');
-            return (isHex || isCssVar) ? str : null;
-        }).filter(c => c).slice(0, 10);
+        const validated = gradient
+            .map(c => String(c).trim())
+            .filter(c => isValidCssColor(c))
+            .slice(0, 10);
         return validated.length > 0 ? validated : ['#ff0000', '#ffff00', '#00ff00'];
     }
 
@@ -401,13 +424,28 @@ class OrderedSlidersCard extends HTMLElement {
     }
 
     updateCard() {
-        if (!this._hass || !this.config) return;
+        if (!this._hass || !this.config || !Array.isArray(this.config.entities)) return;
+        // Do not rebuild the DOM while a handle is being dragged: recreating the
+        // handles would detach the one under the cursor when the optimistic state
+        // update comes back from HA, breaking the drag mid-gesture.
+        if (this._state.dragState.isDragging) return;
 
+        // Include the displayed attributes in the hash so a change of
+        // friendly_name / unit / icon / icon_color also triggers a refresh,
+        // not only a change of state.
         const entitiesHash = JSON.stringify(
-            this.config.entities.map(e => ({
-                entity: e.entity,
-                value: this._hass.states[e.entity]?.state
-            }))
+            this.config.entities.map(e => {
+                const s = this._hass.states[e.entity];
+                const a = s?.attributes;
+                return {
+                    entity: e.entity,
+                    value: s?.state,
+                    name: a?.friendly_name,
+                    unit: a?.unit_of_measurement,
+                    icon: a?.icon,
+                    icon_color: a?.icon_color
+                };
+            })
         );
 
         if (entitiesHash === this._state.caches.entitiesHash && this._lastRenderedHash === entitiesHash) {
@@ -440,7 +478,10 @@ class OrderedSlidersCard extends HTMLElement {
             }
 
             const name = cfg.name || entity.attributes.friendly_name || cfg.entity;
-            const color = cfg.color || entity.attributes.icon_color || '#ffffff';
+            // cfg.color is already validated in setConfig; icon_color comes from the
+            // entity's attributes (integration-controlled) so validate it too.
+            const attrColor = isValidCssColor(entity.attributes.icon_color) ? entity.attributes.icon_color : '';
+            const color = cfg.color || attrColor || '#ffffff';
             const icon = entity.attributes.icon || cfg.icon || '';
             const unit = cfg.show_unit ? (entity.attributes.unit_of_measurement || cfg.unit || '') : '';
             const display = unit ? `${value.toFixed(1)} ${escapeHtml(unit)}` : value.toFixed(1);
@@ -453,7 +494,12 @@ class OrderedSlidersCard extends HTMLElement {
             handle.dataset.entity = cfg.entity;
             handle.dataset.index = idx;
             handle.setAttribute('role', 'slider');
-            handle.setAttribute('aria-label', `${escapeHtmlAttribute(name)}: ${value}`);
+            // setAttribute goes through the DOM API (no HTML parsing) so the raw
+            // name is safe here; the value lives in aria-valuenow, not the label.
+            handle.setAttribute('aria-label', name);
+            handle.setAttribute('aria-valuemin', String(this.config.min));
+            handle.setAttribute('aria-valuemax', String(this.config.max));
+            handle.setAttribute('aria-valuenow', String(value));
             handle.setAttribute('tabindex', '0');
 
             this._addDragBehavior(handle, idx);
@@ -559,12 +605,29 @@ class OrderedSlidersCard extends HTMLElement {
             }
         }
 
+        // Neighbors closer than one step apart can make minValue exceed maxValue.
+        // Collapse to a single valid point so the later clamp stays well-defined.
+        if (minValue > maxValue) {
+            minValue = maxValue = (minValue + maxValue) / 2;
+        }
+
         return { minValue, maxValue };
     }
 
     _addDragBehavior(handle, index) {
         const container = this.shadowRoot.querySelector('#slider-container');
         const handleId = `handle-${index}`;
+
+        // Remember the last value produced during the drag so it can be flushed
+        // on release — the leading-edge throttle can otherwise drop the final one.
+        let lastValue = null;
+
+        const flush = () => {
+            if (lastValue !== null) {
+                this._callApiWithThrottle(handle.dataset.entity, lastValue);
+                lastValue = null;
+            }
+        };
 
         const updateValue = (clientX) => {
             const rect = container.getBoundingClientRect();
@@ -574,12 +637,11 @@ class OrderedSlidersCard extends HTMLElement {
 
             const { minValue, maxValue } = this.getConstraints(index);
             newValue = Math.max(minValue, Math.min(maxValue, newValue));
+            lastValue = newValue;
 
             handle.classList.add('dragging');
             handle.style.left = this.valueToPercent(newValue) + '%';
-
-            const labelParts = handle.getAttribute('aria-label').split(':');
-            handle.setAttribute('aria-label', `${labelParts[0]}: ${newValue}`);
+            handle.setAttribute('aria-valuenow', String(newValue));
 
             this._throttleApiCall(handle.dataset.entity, newValue);
         };
@@ -593,6 +655,7 @@ class OrderedSlidersCard extends HTMLElement {
 
         const onMouseUp = () => {
             handle.classList.remove('dragging');
+            flush();
             this._state.clearDragState();
             this._state.removeAllEventListeners('mouse-' + handleId);
         };
@@ -605,8 +668,9 @@ class OrderedSlidersCard extends HTMLElement {
         };
 
         const onTouchEnd = () => {
+            // Haptic feedback is already fired on touchstart; avoid a second buzz.
             handle.classList.remove('dragging');
-            if (navigator.vibrate) navigator.vibrate(50);
+            flush();
             this._state.clearDragState();
             this._state.removeAllEventListeners('touch-' + handleId);
         };
@@ -632,7 +696,9 @@ class OrderedSlidersCard extends HTMLElement {
         });
 
         handle.addEventListener('keydown', (e) => {
-            const current = parseFloat(this._hass.states[handle.dataset.entity].state);
+            const state = this._hass?.states[handle.dataset.entity];
+            if (!state) return;
+            const current = parseFloat(state.state);
             if (isNaN(current)) return;
 
             let newValue = current;
@@ -640,11 +706,11 @@ class OrderedSlidersCard extends HTMLElement {
 
             if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
                 e.preventDefault();
-                newValue = Math.max(this.config.min, current - this.config.step);
+                newValue = current - this.config.step;
                 changed = true;
             } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
                 e.preventDefault();
-                newValue = Math.min(this.config.max, current + this.config.step);
+                newValue = current + this.config.step;
                 changed = true;
             } else if (e.key === 'Home') {
                 e.preventDefault();
@@ -657,9 +723,15 @@ class OrderedSlidersCard extends HTMLElement {
             }
 
             if (changed) {
+                // Snap to the step grid and apply the ordering constraints
+                // (getConstraints already handles free_mode) so keyboard moves
+                // stay on-grid and cannot cross neighboring handles.
+                newValue = this.snapToStep(newValue);
+                const { minValue, maxValue } = this.getConstraints(index);
+                newValue = Math.max(minValue, Math.min(maxValue, newValue));
+
                 handle.style.left = this.valueToPercent(newValue) + '%';
-                const labelParts = handle.getAttribute('aria-label').split(':');
-                handle.setAttribute('aria-label', `${labelParts[0]}: ${newValue}`);
+                handle.setAttribute('aria-valuenow', String(newValue));
                 this._callApiWithThrottle(handle.dataset.entity, newValue);
             }
         });
@@ -773,6 +845,12 @@ class OrderedSlidersCard extends HTMLElement {
       </ha-card>
     `;
 
+        // The DOM was just rebuilt from scratch — invalidate the render caches so
+        // updateCard() repopulates it instead of short-circuiting on an unchanged
+        // hash (otherwise a config-only change leaves a blank card / stale grid).
+        this._lastRenderedHash = null;
+        this._state.caches.entitiesHash = null;
+        this._state.caches.gridCanvas = null;
         this.updateCard();
     }
 
