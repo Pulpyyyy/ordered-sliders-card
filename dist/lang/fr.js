@@ -1,0 +1,33 @@
+// lang/fr.js — French strings for Ordered Sliders Card.
+// Merges into window.__orderedSlidersTranslations, shared by the card and editor.
+(window.__orderedSlidersTranslations = window.__orderedSlidersTranslations || {}).fr = {
+    card_title: "Curseurs Ordonnés",
+    min_label: "Min",
+    max_label: "Max",
+    step_label: "Pas",
+    bar_height_label: "Hauteur barre",
+    handle_height_label: "Hauteur curseurs",
+    show_grid_label: "Afficher grille",
+    free_mode_label: "Mode libre",
+    gradient_label: "Dégradé de couleurs",
+    entities_label: "Entités (input_number)",
+    add_entity: "Ajouter une entité",
+    add_color: "Ajouter une couleur",
+    color_label: "Couleur",
+    remove: "Supprimer",
+    edit_entity: "Modifier l'entité",
+    entity_id_label: "Entité ID",
+    name_label: "Nom (optionnel)",
+    color_label_optional: "Couleur (optionnel)",
+    icon_label: "Icône (optionnel)",
+    show_unit: "Afficher l'unité",
+    hide_icon: "Masquer l'icône",
+    unit_label: "Unité (optionnel)",
+    save: "Enregistrer",
+    cancel: "Annuler",
+    no_entities: "Aucune entité",
+    yes: "Oui",
+    no: "Non",
+    error_entity_not_found: "Entité non trouvée",
+    error_invalid_entity_id: "ID d'entité invalide"
+};

@@ -1,12 +1,10 @@
 // ordered-sliders-card-editor.js
 // Editor for Ordered Sliders Card
 // Uses Home Assistant helper elements: ha-textfield, ha-number-input, ha-switch, ha-entity-picker
-// Translations are shared from ordered-sliders-card.js via window.__orderedSlidersTranslations
+// Translations come from dist/lang/<code>.js via window.__orderedSlidersTranslations
 
 (function () {
-    // Translations are set by ordered-sliders-card.js before this file is loaded
-    const TRANSLATIONS = window.__orderedSlidersTranslations;
-    if (!TRANSLATIONS) {
+    if (!window.__orderedSlidersTranslations) {
         console.error('[OrderedSlidersCardEditor] Translations not found. Make sure ordered-sliders-card.js is loaded first.');
     }
 
@@ -14,15 +12,20 @@
         constructor(hass) {
             this._hass = hass;
         }
+        _translations() {
+            return window.__orderedSlidersTranslations || {};
+        }
         getLanguage() {
-            if (this._hass?.locale?.language && TRANSLATIONS?.[this._hass.locale.language]) {
+            const t = this._translations();
+            if (this._hass?.locale?.language && t[this._hass.locale.language]) {
                 return this._hass.locale.language;
             }
             return "en";
         }
         t(key) {
+            const t = this._translations();
             const lang = this.getLanguage();
-            return TRANSLATIONS?.[lang]?.[key] || TRANSLATIONS?.en?.[key] || key;
+            return t[lang]?.[key] || t.en?.[key] || key;
         }
         setHass(hass) {
             this._hass = hass;
@@ -66,6 +69,41 @@
                 bubbles: true,
                 composed: true
             }));
+        }
+
+        // Patch a single field of the entity at `idx`, normalizing a legacy
+        // string entry ("input_number.x") into an object first so the other
+        // per-entity options are preserved. Does not re-render (keeps focus).
+        _updateEntityField(idx, key, value) {
+            const entities = [...(this._config.entities || [])];
+            let ent = entities[idx];
+            ent = (typeof ent === 'string') ? { entity: ent } : { ...(ent || {}) };
+            ent[key] = value;
+            entities[idx] = ent;
+            this._config = { ...this._config, entities };
+            this._fireConfigChanged();
+        }
+
+        _entityTextField(idx, key, label, value, placeholder) {
+            const field = document.createElement('ha-textfield');
+            field.label = label;
+            field.value = value || '';
+            if (placeholder) field.placeholder = placeholder;
+            field.style.width = '100%';
+            field.addEventListener('change', e => this._updateEntityField(idx, key, e.target.value));
+            return field;
+        }
+
+        _entitySwitch(idx, key, label, checked) {
+            const rowEl = document.createElement('div');
+            rowEl.className = 'switch-row';
+            const span = document.createElement('span');
+            span.textContent = label;
+            const sw = document.createElement('ha-switch');
+            sw.checked = checked;
+            sw.addEventListener('change', e => this._updateEntityField(idx, key, e.target.checked));
+            rowEl.append(span, sw);
+            return rowEl;
         }
 
         _render() {
@@ -151,6 +189,31 @@
                 }
                 .add-btn-row {
                     margin-top: 8px;
+                }
+                .entity-block {
+                    border: 1px solid var(--divider-color, rgba(0,0,0,0.12));
+                    border-radius: 8px;
+                    padding: 8px;
+                    margin-bottom: 8px;
+                }
+                .entity-block .entity-row {
+                    margin-bottom: 0;
+                }
+                .entity-options {
+                    margin-top: 4px;
+                }
+                .entity-options summary {
+                    cursor: pointer;
+                    font-size: 13px;
+                    color: var(--secondary-text-color);
+                    padding: 4px 0;
+                    user-select: none;
+                }
+                .entity-options .fields {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    padding-top: 8px;
                 }
             `;
             root.appendChild(style);
@@ -269,8 +332,13 @@
             root.appendChild(entitiesHeader);
 
             (this._config.entities || []).forEach((entity, idx) => {
-                const entityId = typeof entity === 'string' ? entity : (entity.entity || '');
+                const ent = typeof entity === 'string' ? { entity } : (entity || {});
+                const entityId = ent.entity || '';
 
+                const block = document.createElement('div');
+                block.className = 'entity-block';
+
+                // ── Entity picker + delete ──
                 const row = document.createElement('div');
                 row.className = 'entity-row';
 
@@ -280,18 +348,10 @@
                 picker.includeDomains = ['input_number'];
                 picker.allowCustomEntity = false;
                 picker.addEventListener('value-changed', e => {
-                    const newEntities = [...this._config.entities];
-                    if (typeof newEntities[idx] === 'string') {
-                        newEntities[idx] = e.detail.value;
-                    } else {
-                        newEntities[idx] = { ...newEntities[idx], entity: e.detail.value };
-                    }
-                    this._config = { ...this._config, entities: newEntities };
-                    this._fireConfigChanged();
+                    this._updateEntityField(idx, 'entity', e.detail.value);
                 });
                 row.appendChild(picker);
 
-                // Delete button
                 const deleteBtn = document.createElement('ha-icon-button');
                 deleteBtn.label = this.t('remove');
                 deleteBtn.innerHTML = '<ha-icon icon="mdi:delete"></ha-icon>';
@@ -302,8 +362,37 @@
                     this._render();
                 });
                 row.appendChild(deleteBtn);
+                block.appendChild(row);
 
-                root.appendChild(row);
+                // ── Collapsible per-entity options ──
+                const details = document.createElement('details');
+                details.className = 'entity-options';
+                const summary = document.createElement('summary');
+                summary.textContent = this.t('edit_entity');
+                details.appendChild(summary);
+
+                const fields = document.createElement('div');
+                fields.className = 'fields';
+
+                const nameUnit = document.createElement('div');
+                nameUnit.className = 'grid-2';
+                nameUnit.appendChild(this._entityTextField(idx, 'name', this.t('name_label'), ent.name));
+                nameUnit.appendChild(this._entityTextField(idx, 'unit', this.t('unit_label'), ent.unit));
+                fields.appendChild(nameUnit);
+
+                const colorIcon = document.createElement('div');
+                colorIcon.className = 'grid-2';
+                colorIcon.appendChild(this._entityTextField(idx, 'color', this.t('color_label_optional'), ent.color, '#RRGGBB / var(--…)'));
+                colorIcon.appendChild(this._entityTextField(idx, 'icon', this.t('icon_label'), ent.icon, 'mdi:…'));
+                fields.appendChild(colorIcon);
+
+                fields.appendChild(this._entitySwitch(idx, 'show_unit', this.t('show_unit'), ent.show_unit !== false));
+                fields.appendChild(this._entitySwitch(idx, 'hide_icon', this.t('hide_icon'), ent.hide_icon === true));
+
+                details.appendChild(fields);
+                block.appendChild(details);
+
+                root.appendChild(block);
             });
 
             // Add entity button

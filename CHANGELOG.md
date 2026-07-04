@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [2.2.1] - 2026-07-04
 
+### Added
+- ✏️ Per-entity editor: name, unit, color, icon, "show unit" and "hide icon" are now editable from the UI (collapsible section per entity), not just via YAML
+
+### Changed (i18n)
+- 📦 Translation strings moved to per-language files (`dist/lang/en.js`, `dist/lang/fr.js`), shared by the card and the editor
+- 🌍 Dropped the German (DE) translations; German users fall back to English
+
 ### Fixed
 - 🐛 Dragging no longer breaks when an optimistic state update rebuilds the DOM mid-gesture (guard on `isDragging`)
 - 🐛 The final drag value is flushed on release, so the slider no longer snaps back to a stale value

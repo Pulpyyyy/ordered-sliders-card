@@ -1,0 +1,33 @@
+// lang/en.js — English strings for Ordered Sliders Card.
+// Merges into window.__orderedSlidersTranslations, shared by the card and editor.
+(window.__orderedSlidersTranslations = window.__orderedSlidersTranslations || {}).en = {
+    card_title: "Ordered Sliders",
+    min_label: "Min",
+    max_label: "Max",
+    step_label: "Step",
+    bar_height_label: "Bar Height",
+    handle_height_label: "Handle Height",
+    show_grid_label: "Show Grid",
+    free_mode_label: "Free Mode",
+    gradient_label: "Color Gradient",
+    entities_label: "Entities (input_number)",
+    add_entity: "Add Entity",
+    add_color: "Add Color",
+    color_label: "Color",
+    remove: "Remove",
+    edit_entity: "Edit Entity",
+    entity_id_label: "Entity ID",
+    name_label: "Name (optional)",
+    color_label_optional: "Color (optional)",
+    icon_label: "Icon (optional)",
+    show_unit: "Show Unit",
+    hide_icon: "Hide Icon",
+    unit_label: "Unit (optional)",
+    save: "Save",
+    cancel: "Cancel",
+    no_entities: "No entities",
+    yes: "Yes",
+    no: "No",
+    error_entity_not_found: "Entity not found",
+    error_invalid_entity_id: "Invalid entity ID"
+};

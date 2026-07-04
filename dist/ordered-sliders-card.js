@@ -1,98 +1,21 @@
-const TRANSLATIONS = {
-    en: {
-        card_title: "Ordered Sliders",
-        min_label: "Min",
-        max_label: "Max",
-        step_label: "Step",
-        bar_height_label: "Bar Height",
-        handle_height_label: "Handle Height",
-        show_grid_label: "Show Grid",
-        free_mode_label: "Free Mode",
-        gradient_label: "Color Gradient",
-        entities_label: "Entities (input_number)",
-        add_entity: "Add Entity",
-        add_color: "Add Color",
-        color_label: "Color",
-        remove: "Remove",
-        edit_entity: "Edit Entity",
-        entity_id_label: "Entity ID",
-        name_label: "Name (optional)",
-        color_label_optional: "Color (optional)",
-        icon_label: "Icon (optional)",
-        show_unit: "Show Unit",
-        hide_icon: "Hide Icon",
-        save: "Save",
-        cancel: "Cancel",
-        no_entities: "No entities",
-        yes: "Yes",
-        no: "No",
-        error_entity_not_found: "Entity not found",
-        error_invalid_entity_id: "Invalid entity ID"
-    },
-    fr: {
-        card_title: "Curseurs Ordonnés",
-        min_label: "Min",
-        max_label: "Max",
-        step_label: "Pas",
-        bar_height_label: "Hauteur barre",
-        handle_height_label: "Hauteur curseurs",
-        show_grid_label: "Afficher grille",
-        free_mode_label: "Mode libre",
-        gradient_label: "Dégradé de couleurs",
-        entities_label: "Entités (input_number)",
-        add_entity: "Ajouter une entité",
-        add_color: "Ajouter une couleur",
-        color_label: "Couleur",
-        remove: "Supprimer",
-        edit_entity: "Modifier l'entité",
-        entity_id_label: "Entité ID",
-        name_label: "Nom (optionnel)",
-        color_label_optional: "Couleur (optionnel)",
-        icon_label: "Icône (optionnel)",
-        show_unit: "Afficher l'unité",
-        hide_icon: "Masquer l'icône",
-        save: "Enregistrer",
-        cancel: "Annuler",
-        no_entities: "Aucune entité",
-        yes: "Oui",
-        no: "Non",
-        error_entity_not_found: "Entité non trouvée",
-        error_invalid_entity_id: "ID d'entité invalide"
-    },
-    de: {
-        card_title: "Geordnete Schieberegler",
-        min_label: "Min",
-        max_label: "Max",
-        step_label: "Schritt",
-        bar_height_label: "Balkenhöhe",
-        handle_height_label: "Schiebereglerhöhe",
-        show_grid_label: "Raster anzeigen",
-        free_mode_label: "Freier Modus",
-        gradient_label: "Farbverlauf",
-        entities_label: "Entitäten (input_number)",
-        add_entity: "Entität hinzufügen",
-        add_color: "Farbe hinzufügen",
-        color_label: "Farbe",
-        remove: "Entfernen",
-        edit_entity: "Entität bearbeiten",
-        entity_id_label: "Entitäts-ID",
-        name_label: "Name (optional)",
-        color_label_optional: "Farbe (optional)",
-        icon_label: "Symbol (optional)",
-        show_unit: "Einheit anzeigen",
-        hide_icon: "Symbol ausblenden",
-        save: "Speichern",
-        cancel: "Abbrechen",
-        no_entities: "Keine Entitäten",
-        yes: "Ja",
-        no: "Nein",
-        error_entity_not_found: "Entität nicht gefunden",
-        error_invalid_entity_id: "Ungültige Entitäts-ID"
-    }
-};
-
-// Expose translations so the editor file can reuse them without duplication
-window.__orderedSlidersTranslations = TRANSLATIONS;
+// Translations live in dist/lang/<code>.js (one file per language) and merge into
+// window.__orderedSlidersTranslations, shared with the editor. Load them here,
+// deriving the URLs from this card's own <script src> (same trick used to load
+// the editor). The language helpers read the global lazily, so a late load only
+// affects console warnings until the next render.
+(function loadTranslations() {
+    if (window.__orderedSlidersTranslations?.en) return;
+    const cardScript = document.querySelector('script[src*="ordered-sliders-card.js"]');
+    if (!cardScript?.src) return;
+    // Supported languages — add a new dist/lang/<code>.js file and list it here.
+    ['en', 'fr'].forEach(lang => {
+        const src = cardScript.src.replace('ordered-sliders-card.js', `lang/${lang}.js`);
+        const script = document.createElement('script');
+        script.src = src;
+        script.onerror = () => console.error('[OrderedSlidersCard] Could not load translations from', src);
+        document.head.appendChild(script);
+    });
+})();
 
 const CARD_VERSION = "2.2.1";
 
@@ -156,16 +79,24 @@ class LanguageHelper {
         this._hass = hass;
     }
 
+    // Read the shared translations lazily so a late-loaded translations file is
+    // still picked up (falls back to an empty map, then to the key itself).
+    _translations() {
+        return window.__orderedSlidersTranslations || {};
+    }
+
     getLanguage() {
-        if (this._hass?.locale?.language && TRANSLATIONS[this._hass.locale.language]) {
+        const t = this._translations();
+        if (this._hass?.locale?.language && t[this._hass.locale.language]) {
             return this._hass.locale.language;
         }
         return "en";
     }
 
     t(key) {
+        const t = this._translations();
         const lang = this.getLanguage();
-        return TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
+        return t[lang]?.[key] || t.en?.[key] || key;
     }
 
     setHass(hass) {
