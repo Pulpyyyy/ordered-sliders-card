@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
 - 🐛 Config-only changes (step/height/title/gradient…) no longer leave a blank card / stale grid
 - 🐛 `handle_height` below the minimum is now actually clamped (matching the warning)
 - 🐛 Render refreshes when `friendly_name` / `unit` / `icon` / `icon_color` change, not only on state change
+- 🐛 Values are snapped to the step's decimal precision, avoiding floating-point artifacts (e.g. `0.30000000000000004`) in the value sent to `input_number`
+- 🐛 The default card title in the picker now follows the current language instead of being hardcoded English
 
 ### Security
 - 🔒 Strict CSS color validation for entity colors, `icon_color` and gradient stops (blocks CSS injection)

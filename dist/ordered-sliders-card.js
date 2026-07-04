@@ -511,7 +511,12 @@ class OrderedSlidersCard extends HTMLElement {
 
     snapToStep(value) {
         const { step, min } = this.config;
-        return Math.round((value - min) / step) * step + min;
+        const snapped = Math.round((value - min) / step) * step + min;
+        // Strip binary float artifacts (e.g. 0.30000000000000004) using the
+        // step's own decimal precision, so the value sent to input_number and the
+        // displayed value stay clean.
+        const decimals = Math.min((String(step).split('.')[1] || '').length, 10);
+        return Number(snapped.toFixed(decimals));
     }
 
     getConstraints(index) {
@@ -822,8 +827,14 @@ class OrderedSlidersCard extends HTMLElement {
             chosen = Object.keys(hass.states).filter(id => id.startsWith('input_number.'));
         }
 
+        // Localized default title (falls back to English, then a literal) — the
+        // translations may not have finished loading, hence the safe chain.
+        const trans = window.__orderedSlidersTranslations || {};
+        const lang = (hass?.locale?.language && trans[hass.locale.language]) ? hass.locale.language : 'en';
+        const title = trans[lang]?.card_title || trans.en?.card_title || 'Ordered Sliders';
+
         return {
-            title: 'Ordered Sliders',
+            title,
             min: 0,
             max: 100,
             step: 1,
